@@ -3,7 +3,7 @@
 > A beautiful, modern web-based document converter supporting **PDF, DOCX, TXT, HTML, DJVU, ICS, and images** with real-time preview, size estimation, and batch processing.
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python)](https://python.org)
-[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen)]()
 [![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-orange)]()
 
@@ -225,7 +225,7 @@ mypy converter/ web_converter/
 
 ## 📄 License
 
-MIT License — see [LICENSE](LICENSE) for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
