@@ -37,6 +37,7 @@ class LibraryManager:
         self._pytesseract = None
         self._mammoth = None
         self._weasyprint = None
+        self._icalendar = None
         
         # Loading state tracking
         self._load_locks = {
@@ -49,6 +50,7 @@ class LibraryManager:
             'pytesseract': threading.Lock(),
             'mammoth': threading.Lock(),
             'weasyprint': threading.Lock(),
+            'icalendar': threading.Lock(),
         }
         
         # Availability flags
@@ -150,6 +152,16 @@ class LibraryManager:
             return None
         return self._weasyprint
     
+    # --- icalendar (optional for ICS handler) ---
+    def get_icalendar(self):
+        """Get icalendar.Calendar class (optional - ICS handler has a built-in fallback)."""
+        def _load_icalendar():
+            from icalendar import Calendar
+            return Calendar
+        if not self._load_with_lock('icalendar', _load_icalendar):
+            return None
+        return self._icalendar
+    
     # --- Availability checks ---
     def is_available(self, name: str) -> bool:
         """Check if library is available (triggers load)."""
@@ -172,6 +184,7 @@ class LibraryManager:
             'pytesseract': lambda: __import__('pytesseract'),
             'mammoth': lambda: __import__('mammoth'),
             'weasyprint': lambda: __import__('weasyprint').HTML,
+            'icalendar': lambda: __import__('icalendar').Calendar,
         }
         for name in self._load_locks:
             loader = loaders.get(name, lambda: True)

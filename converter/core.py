@@ -33,6 +33,7 @@ class InputFormat(Enum):
     DOCX = "docx"
     TXT = "txt"
     HTML = "html"
+    ICS = "ics"
     DJVU = "djvu"
     DJV = "djv"
     PNG = "png"
@@ -112,6 +113,7 @@ class DocumentConverter:
         InputFormat.DOCX.value: [OutputFormat.PDF.value, OutputFormat.TXT.value, OutputFormat.HTML.value, OutputFormat.PNG.value, OutputFormat.JPEG.value],
         InputFormat.TXT.value: [OutputFormat.PDF.value, OutputFormat.DOCX.value, OutputFormat.HTML.value],
         InputFormat.HTML.value: [OutputFormat.PDF.value, OutputFormat.DOCX.value, OutputFormat.TXT.value, OutputFormat.PNG.value, OutputFormat.JPEG.value],
+        InputFormat.ICS.value: [OutputFormat.PDF.value, OutputFormat.DOCX.value, OutputFormat.TXT.value, OutputFormat.HTML.value],
         InputFormat.DJVU.value: [OutputFormat.PDF.value, OutputFormat.PNG.value, OutputFormat.JPEG.value, OutputFormat.TIFF.value, OutputFormat.TXT.value],
         InputFormat.DJV.value: [OutputFormat.PDF.value, OutputFormat.PNG.value, OutputFormat.JPEG.value, OutputFormat.TIFF.value, OutputFormat.TXT.value],
         InputFormat.PNG.value: [OutputFormat.PDF.value, OutputFormat.DOCX.value, OutputFormat.PNG.value, OutputFormat.JPEG.value, OutputFormat.TIFF.value, OutputFormat.BMP.value, OutputFormat.WEBP.value],
@@ -152,6 +154,12 @@ class DocumentConverter:
             self._handlers[InputFormat.HTML.value] = HTMLHandler()
         except ImportError:
             logger.warning("HTML handler not available")
+        
+        try:
+            from .formats.ics_handler import ICSHandler
+            self._handlers[InputFormat.ICS.value] = ICSHandler()
+        except ImportError:
+            logger.warning("ICS handler not available")
         
         try:
             from .formats.djvu_handler import DJVUHandler

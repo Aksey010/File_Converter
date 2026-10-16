@@ -24,6 +24,10 @@ beautifulsoup4==4.12.3    # HTML parsing
 html2docx==1.1.0          # HTML to DOCX
 mammoth==1.9.0            # DOCX to HTML
 
+# ICS/iCalendar support (optional)
+# ICS works without it (built-in fallback parser); install for best fidelity
+icalendar==7.3.0          # iCalendar parsing (recurrence, timezones)
+
 # Utilities
 orjson==3.10.18           # Fast JSON
 python-dotenv==1.1.0      # Environment variables

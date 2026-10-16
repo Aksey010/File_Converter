@@ -1,6 +1,6 @@
 # 📄 Document Converter
 
-> A beautiful, modern web-based document converter supporting **PDF, DOCX, TXT, HTML, DJVU, and images** with real-time preview, size estimation, and batch processing.
+> A beautiful, modern web-based document converter supporting **PDF, DOCX, TXT, HTML, DJVU, ICS, and images** with real-time preview, size estimation, and batch processing.
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
@@ -13,7 +13,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🔄 **Multi-format** | PDF ↔ DOCX ↔ TXT ↔ HTML ↔ Images (PNG, JPEG, TIFF, BMP, WEBP, GIF) + DJVU |
+| 🔄 **Multi-format** | PDF ↔ DOCX ↔ TXT ↔ HTML ↔ Images (PNG, JPEG, TIFF, BMP, WEBP, GIF) + DJVU + ICS |
 | 🎨 **Modern UI** | Drag & drop, real-time format compatibility, live size estimation |
 | ⚙️ **Smart Options** | Quality, DPI, resize, compression, grayscale, metadata stripping, page ranges |
 | 📊 **Size Preview** | Instant output size estimation before conversion |
@@ -34,10 +34,22 @@ DOCX       → PDF, TXT, HTML, PNG, JPEG
 TXT        → PDF, DOCX, HTML
 HTML       → PDF, DOCX, TXT, PNG, JPEG
 DJVU/DJV   → PDF, PNG, JPEG, TIFF, TXT
+ICS        → PDF, DOCX, TXT, HTML
 Images     → PDF, DOCX, PNG, JPEG, TIFF, BMP, WEBP
 ```
 
-> **Note**: DJVU requires [`djvulibre`](https://djvu.sourceforge.net/) (`ddjvu` in PATH). HTML→PDF needs [`wkhtmltopdf`](https://wkhtmltopdf.org/) for best results.
+> **Note**: DJVU requires [`djvulibre`](https://djvu.sourceforge.net/) (`ddjvu` in PATH). ICS works out of the box — optionally `pip install icalendar` for better timezone/recurrence fidelity. HTML→PDF needs [`wkhtmltopdf`](https://wkhtmltopdf.org/) for best results.
+
+### External Tools (what to install for full functionality)
+
+| Tool | Needed for | Install |
+|------|-----------|---------|
+| [`djvulibre`](https://djvu.sourceforge.net/) | DJVU/DJV input (provides `ddjvu`, `djvudump`) | **Windows**: [official installer](https://sourceforge.net/projects/djvu/files/DjVuLibre%20Windows/) or `winget install djvulibre` (add `bin\` to PATH); **Linux**: `sudo apt install djvulibre-bin`; **macOS**: `brew install djvulibre` |
+| [`poppler`](https://poppler.freedesktop.org/) | PDF → images (`pdf2image`) | **Windows**: [release binaries](https://github.com/oschwartz10612/poppler-windows/releases) (add `bin\` to PATH); **Linux**: `sudo apt install poppler-utils`; **macOS**: `brew install poppler` |
+| [`tesseract-ocr`](https://github.com/tesseract-ocr/tesseract) | OCR for scanned PDF/DJVU (optional) | **Windows**: [installer](https://github.com/UB-Mannheim/tesseract/wiki); **Linux**: `sudo apt install tesseract-ocr`; **macOS**: `brew install tesseract` |
+| `wkhtmltopdf` | HTML → PDF (best results, optional) | [downloads](https://wkhtmltopdf.org/downloads.html) |
+| MS Word (Windows) | DOCX → PDF via `docx2pdf` (optional) | `pip install docx2pdf` + installed Word |
+| `pip install icalendar` | ICS input — best fidelity (optional) | ships in `requirements.txt`; without it a built-in fallback parser is used |
 
 ---
 
@@ -108,7 +120,8 @@ document-converter/
 │       ├── txt_handler.py  # Text processing
 │       ├── html_handler.py # BeautifulSoup + html2docx + wkhtmltopdf
 │       ├── image_handler.py# Pillow + PyMuPDF
-│       └── djvu_handler.py # ddjvu CLI wrapper
+│       ├── djvu_handler.py # ddjvu CLI wrapper
+│       └── ics_handler.py  # iCalendar (icalendar + built-in fallback parser)
 ├── web_converter/          # Web UI (aiohttp + Jinja2)
 │   ├── app.py              # Server + API routes
 │   ├── templates/index.html
@@ -185,6 +198,7 @@ mypy converter/ web_converter/
 | `Pillow` | Image processing |
 | `beautifulsoup4`, `html2docx` | HTML parsing + conversion |
 | `mammoth` | DOCX → HTML |
+| `icalendar` | ICS/iCalendar parsing (optional — built-in fallback parser used if absent) |
 | `pytesseract` | OCR (optional) |
 | `orjson` | Fast JSON |
 

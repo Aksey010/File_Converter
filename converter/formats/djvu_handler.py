@@ -1,5 +1,6 @@
 """DJVU format handler."""
 
+import io
 import os
 import tempfile
 import subprocess
@@ -19,20 +20,30 @@ class DJVUHandler(BaseHandler):
         self._check_tools()
     
     def _check_tools(self):
-        """Check for DJVU tools."""
-        # Check for ddjvu (from djvulibre)
-        try:
-            result = subprocess.run(['ddjvu', '--version'], capture_output=True, text=True)
-            self._ddjvu_available = result.returncode == 0
-        except FileNotFoundError:
-            self._ddjvu_available = False
-        
-        # Check for djvudump (for text extraction)
-        try:
-            result = subprocess.run(['djvudump', '--version'], capture_output=True, text=True)
-            self._djvudump_available = result.returncode == 0
-        except FileNotFoundError:
-            self._djvudump_available = False
+        """Check for DJVU tools.
+
+        A tool counts as available whenever its executable can be launched at
+        all. The exit code of a probe call is deliberately ignored: real
+        djvulibre 3.5.x builds return non-zero for 'ddjvu --version' (unknown
+        option) and 'djvudump --version' treats the flag as a filename, so a
+        returncode-based check falsely reports installed tools as missing.
+        """
+        for attr, tool in (
+            ('_ddjvu_available', 'ddjvu'),
+            ('_djvudump_available', 'djvudump'),
+        ):
+            try:
+                # No-arg call prints usage and exits; we only care that the
+                # executable was found on PATH.
+                subprocess.run([tool], capture_output=True, text=True, timeout=15)
+                setattr(self, attr, True)
+            except FileNotFoundError:
+                setattr(self, attr, False)
+            except Exception:
+                # Program exists but the probe misbehaved (timeout,
+                # permissions, ...). Treat as present — the actual conversion
+                # will surface any real problem with a clear error.
+                setattr(self, attr, True)
     
     def _get_pillow(self):
         return self._libs.get_pillow()
@@ -67,6 +78,18 @@ class DJVUHandler(BaseHandler):
             return self._djvu_to_text(input_path, output_path, options)
         
         return None
+
+    @staticmethod
+    def _dpi_to_scale(dpi: int) -> str:
+        """Convert the app DPI option to a ddjvu ``-scale`` percentage.
+
+        ddjvu has no ``-dpi`` option (any djvulibre build). It renders pages
+        at their natural resolution — typically 300 dpi for scanned documents
+        — and ``-scale=N`` takes an integer percentage (1..999): DPI 300 →
+        100 (natural size), 150 → 50 (half), 600 → 200 (double).
+        """
+        scale_pct = max(1, min(999, round(dpi / 300.0 * 100)))
+        return f"-scale={scale_pct}"
     
     def _djvu_to_pdf(self, input_path: str, output_path: str, options: ConversionOptions) -> Optional[str]:
         """Convert DJVU to PDF using ddjvu."""
@@ -75,7 +98,7 @@ class DJVUHandler(BaseHandler):
             'ddjvu',
             '-format=pdf',
             f'-quality={options.djvu_quality}',
-            f'-dpi={options.dpi}',
+            self._dpi_to_scale(options.dpi),
             input_path,
             output_path
         ]
@@ -103,7 +126,7 @@ class DJVUHandler(BaseHandler):
                 'ddjvu',
                 '-format=tiff',
                 f'-quality={options.djvu_quality}',
-                f'-dpi={options.dpi}',
+                self._dpi_to_scale(options.dpi),
                 input_path,
                 tiff_path
             ]
@@ -148,29 +171,35 @@ class DJVUHandler(BaseHandler):
         options: ConversionOptions
     ) -> Optional[str]:
         """Convert DJVU to images."""
-        # Determine output format for ddjvu
+        # ddjvu -format supports only: pbm,pgm,ppm,pnm,rle,tiff,pdf.
+        # Everything else is rendered as PPM first, then re-encoded by Pillow.
         fmt_map = {
-            'png': 'png',
-            'jpeg': 'pnm',  # ddjvu outputs PNM, convert to JPEG
-            'jpg': 'pnm',
+            'png': 'ppm',
+            'jpeg': 'ppm',
+            'jpg': 'ppm',
             'tiff': 'tiff',
-            'bmp': 'pnm',
-            'webp': 'pnm',
+            'bmp': 'ppm',
+            'webp': 'ppm',
         }
         
-        ddjvu_format = fmt_map.get(output_format, 'png')
+        ddjvu_format = fmt_map.get(output_format, 'ppm')
+        needs_reencode = ddjvu_format != 'tiff'
+        
+        if needs_reencode and not self._get_pillow():
+            raise RuntimeError(f"Pillow is required for DJVU → {output_format.upper()} output")
         
         # Parse page range
         page_range = self._parse_page_range(options.page_range)
         page_args = []
         if page_range:
-            page_args = ['-page', f'{page_range[0]}-{page_range[1]}']
+            # ddjvu only accepts the clustered form: -page=PAGESPEC
+            page_args = [f'-page={page_range[0]}-{page_range[1]}']
         
         cmd = [
             'ddjvu',
             f'-format={ddjvu_format}',
             f'-quality={options.djvu_quality}',
-            f'-dpi={options.dpi}',
+            self._dpi_to_scale(options.dpi),
         ] + page_args + [input_path, output_path]
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -178,13 +207,19 @@ class DJVUHandler(BaseHandler):
         if result.returncode != 0:
             raise RuntimeError(f"ddjvu failed: {result.stderr}")
         
-        # If output format needs conversion from PNM
-        if ddjvu_format == 'pnm' and self._get_pillow():
+        # Re-encode PPM/PNM into the requested format. The intermediate is
+        # loaded into memory first: writing to the same path while PIL still
+        # holds it open fails on Windows.
+        if needs_reencode:
             pillow = self._get_pillow()
-            img = pillow.open(output_path)
-            img = self._apply_image_options(img, options)
-            self._save_image(img, output_path, output_format, options)
-            img.close()
+            with open(output_path, 'rb') as f:
+                raw = f.read()
+            img = pillow.open(io.BytesIO(raw))
+            try:
+                img = self._apply_image_options(img, options)
+                self._save_image(img, output_path, output_format, options)
+            finally:
+                img.close()
         
         return output_path if os.path.exists(output_path) else None
     

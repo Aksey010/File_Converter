@@ -24,6 +24,7 @@ from converter.formats.txt_handler import TXTHandler
 from converter.formats.html_handler import HTMLHandler
 from converter.formats.image_handler import ImageHandler
 from converter.formats.djvu_handler import DJVUHandler
+from converter.formats.ics_handler import ICSHandler
 from converter.formats.base import BaseHandler
 
 
@@ -183,6 +184,67 @@ def sample_jpeg(test_dir):
     return img_path
 
 
+SAMPLE_ICS = "\r\n".join([
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Test//DocConverter//EN",
+    "X-WR-CALNAME:Рабочий календарь",
+    "BEGIN:VEVENT",
+    "UID:evt-c@test",
+    "DTSTAMP:20261012T080000Z",
+    "DTSTART;TZID=Europe/Moscow:20260901T090000",
+    "DTEND;TZID=Europe/Moscow:20260901T100000",
+    "SUMMARY:Ранняя встреча",
+    "STATUS:CONFIRMED",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:evt-a@test",
+    "DTSTAMP:20261012T080000Z",
+    "DTSTART:20261012T143000Z",
+    "DTEND:20261012T153000Z",
+    "SUMMARY:Встреча команды",
+    "LOCATION:Переговорная 3",
+    "DESCRIPTION:Обсуждение планов\\nВторая строка",
+    "ORGANIZER;CN=Иван Петров:mailto:ivan@example.com",
+    "ATTENDEE;CN=Мария Смирнова:mailto:maria@example.com",
+    "RRULE:FREQ=WEEKLY;BYDAY=MO",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:evt-b@test",
+    "DTSTAMP:20261012T080000Z",
+    "DTSTART;VALUE=DATE:20261101",
+    "SUMMARY:День рождения \\, весь день",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:evt-d@test",
+    "DTSTAMP:20261012T080000Z",
+    "DTSTART:20261201T120000Z",
+    "SUMMARY:Очень длинное название события которое было перенесено",
+    "  на следующую строку по правилу RFC 5545",
+    "END:VEVENT",
+    "END:VCALENDAR",
+])
+
+
+@pytest.fixture
+def sample_ics(test_dir):
+    """Create a sample ICS file with 4 events (covers TZID, UTC, all-day, folding)."""
+    ics_path = test_dir / "sample.ics"
+    ics_path.write_text(SAMPLE_ICS, encoding="utf-8", newline="")
+    return ics_path
+
+
+@pytest.fixture
+def empty_ics(test_dir):
+    """Create an ICS file without events."""
+    ics_path = test_dir / "empty.ics"
+    ics_path.write_text(
+        "\r\n".join(["BEGIN:VCALENDAR", "VERSION:2.0", "END:VCALENDAR"]),
+        encoding="utf-8", newline="",
+    )
+    return ics_path
+
+
 # ============================================================================
 # Handler fixtures
 # ============================================================================
@@ -221,6 +283,12 @@ def image_handler():
 def djvu_handler():
     """DJVU handler instance."""
     return DJVUHandler()
+
+
+@pytest.fixture
+def ics_handler():
+    """ICS handler instance."""
+    return ICSHandler()
 
 
 @pytest.fixture
