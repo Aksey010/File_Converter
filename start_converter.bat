@@ -69,8 +69,12 @@ if not exist venv_converter\Scripts\python.exe (
     echo.
 )
 
-REM Check for DJVU tools
-ddjvu --version >nul 2>nul
+REM Check for DJVU tools.
+REM NOTE: do NOT probe via "ddjvu --version": djvulibre 3.5.x treats
+REM --version as an unknown option and exits with code 10 even when the
+REM tool is installed, which falsely reported "not found in PATH".
+REM Check PATH presence instead, same as the Python handler does.
+where /q ddjvu
 if errorlevel 1 goto DJVU_NOT_FOUND
 echo DJVU tools found: ddjvu
 echo.
@@ -85,7 +89,7 @@ echo.
 :DJVU_CHECK_END
 
 REM Check for wkhtmltopdf (for HTML to PDF)
-wkhtmltopdf --version >nul 2>nul
+where /q wkhtmltopdf
 if errorlevel 1 goto WKHTML_NOT_FOUND
 echo wkhtmltopdf found - HTML to PDF enabled
 echo.
